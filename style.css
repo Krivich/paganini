@@ -1,0 +1,212 @@
+body {
+    font-family: sans-serif;
+    margin: 0;
+    overflow: hidden;
+    background-color: #222;
+    color: #eee;
+}
+
+#gameArea {
+    position: relative;
+    width: 100%;
+    height: 80vh;
+    background-color: #333;
+    overflow: hidden;
+}
+
+#ukuleleNeck {
+    position: absolute;
+    bottom: 0;
+    left: 10%; /* Adjust for centering */
+    width: 80%;
+    height: 100px; /* Adjust height */
+    background-color: #666; /* Graphite Gray */
+    border-radius: 10px 10px 0 0;
+    box-shadow: 0 0 10px rgba(0, 0, 0, 0.5);
+}
+
+.fret {
+    position: absolute;
+    top: 20%; /* Adjust vertical position within neck */
+    height: 60%;
+    width: 4px;
+    background-color: gold; /* Golden frets */
+}
+
+.note {
+    position: absolute;
+    top: 0;
+    left: 0; /* Will be adjusted in JS */
+    transform: translateX(-50%);
+    background-color: steelblue;
+    color: white;
+    padding: 10px 20px;
+    border-radius: 5px;
+    font-size: 20px;
+    white-space: nowrap;
+}
+
+#controls {
+    padding: 20px;
+    text-align: center;
+}
+
+#calibration {
+    margin-bottom: 10px;
+}
+
+#calibrationHint {
+    margin-bottom: 5px;
+}
+
+#calibrationProgressContainer {
+    width: 80%;
+    height: 10px;
+    background-color: #444;
+    margin: 0 auto;
+    border-radius: 5px;
+    overflow: hidden;
+}
+
+#calibrationProgressBar {
+    height: 100%;
+    background-color: orange;
+    width: 0%; /* Will be updated by JS */
+    border-radius: 5px;
+}
+
+#startButton {
+    margin-bottom: 10px;
+}
+
+#feedback {
+    margin-top: 10px;
+}
+
+#debugInfo {
+    margin-top: 20px;
+    font-size: 12px;
+    text-align: left;
+}
+
+#debugInfo > div {
+    margin-bottom: 5px;
+}
+
+/* ... other styles ... */
+
+.note {
+    position: absolute;
+    top: 0;
+    left: 0; /* Will be adjusted in JS */
+    transform: translateX(-50%);
+    background-color: steelblue;
+    color: white;
+    padding: 8px 15px; /* Adjust padding */
+    border-radius: 5px;
+    white-space: nowrap;
+    text-align: center;
+}
+
+.note > span:first-child {
+    font-size: 20px; /* Fret number size */
+    display: block;
+}
+
+.note > span:last-child {
+    font-size: 12px; /* Frequency size */
+    display: block;
+}
+
+.fret-frequency-label {
+    position: absolute;
+    bottom: -20px; /* Adjust position below the fret */
+    font-size: 10px;
+    color: lightgray;
+    white-space: nowrap;
+    text-align: center;
+}
+
+.note.disappearing {
+    animation: disappearEffect 0.5s forwards; /* Adjust duration as needed */
+}
+
+@keyframes disappearEffect {
+    0% {
+        opacity: 1;
+        transform: scale(1);
+    }
+    100% {
+        opacity: 0;
+        transform: scale(0.5);
+    }
+}
+
+
+.fret {
+    position: absolute;
+    top: 20%; /* Adjust vertical position within neck */
+    height: 60%;
+    width: 4px;
+    background-color: gold; /* Golden frets */
+    display: flex; /* Use flexbox to position the label */
+    flex-direction: column; /* Stack the label below */
+    align-items: center; /* Center the label horizontally */
+    justify-content: flex-end; /* Align items to the bottom of the fret */
+}
+
+.fret-frequency-label {
+    /* position: absolute;  No longer needed on the label itself*/
+    /* bottom: 0;       Move this logic to the fret to keep it relative to the fret */
+    font-size: 10px;
+    color: lightgray;
+    white-space: nowrap;
+    /* text-align: center; -- Already handled by align-items */
+    margin-bottom: 2px; /* Add space below the label */
+}
+
+
+
+.top-bar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 10px;
+    /*background-color: #f0f0f0;*/
+}
+
+.song-selector {
+    /* display: flex;  --- Removed */
+    /* align-items: center; --- Removed */
+}
+
+.song-selector label {
+    margin-right: 10px; /* Removed  */
+}
+
+/* ... other styles ... */
+
+/* Overlay Styles */
+#overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.7);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    font-size: 3em;
+    color: white;
+    z-index: 1000;
+}
+
+#overlay.hidden {
+    display: none;
+}
+
+#overlay-content {
+    /* Add styling for the "Get Ready" text if needed */
+}
+

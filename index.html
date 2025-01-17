@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Paganini - Ukulele</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<div class="top-bar">
+    <h1>Paganini - Ukulele</h1>
+    <div class="song-selector">
+        <select id="songSelect">
+            <option value="">-- Select a Song --</option>
+        </select>
+    </div>
+</div>
+
+<div id="gameArea">
+    <div id="ukuleleNeck">
+        <!-- Frets will be added here by JavaScript -->
+    </div>
+</div>
+
+<div id="controls">
+    <div id="calibration">
+        <div id="calibrationHint">Calibrating...</div>
+        <div id="calibrationProgressContainer">
+            <div id="calibrationProgressBar"></div>
+        </div>
+    </div>
+    <p>Play on a single ukulele string, matching the falling numbers!</p>
+    <div id="feedback"></div>
+    <div id="debugInfo">
+        <div>Calibration State: <span id="debugCalibrationState"></span></div>
+        <div>Detected Frequency: <span id="debugDetectedFrequency"></span> Hz</div>
+        <div>Target Fret: <span id="debugTargetFret"></span></div>
+        <div>Expected Frequency: <span id="debugExpectedFrequency"></span> Hz</div>
+    </div>
+</div>
+
+<div id="overlay" class="hidden">
+    <div id="overlay-content">
+        Get Ready
+    </div>
+</div>
+
+<script type="module" src="script.js"></script>
+<script type="module" src="game.js"></script>
+<script type="module" src="calibration.js"></script>
+
+</body>
+</html>
