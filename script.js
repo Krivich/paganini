@@ -29,18 +29,33 @@ document.addEventListener('DOMContentLoaded', () => {
     function createFrets() {
         const neckWidth = ukuleleNeck.offsetWidth;
         const scaleLength = 380;
-        const fretPositions = [];
+        const fretPositionsRelativeScale = [];
 
         for (let fret = 1; fret <= calibrationInstance.highCalibrationFret + 1; fret++) {
             const fretPos = scaleLength - (scaleLength / Math.pow(2, fret / 12));
-            fretPositions.push(fretPos / scaleLength);
+            fretPositionsRelativeScale.push(fretPos);
         }
 
-        fretPositions.forEach((pos, index) => {
+        const usableNeckWidth = 0.90 * neckWidth;
+        const startOffset = 0.05 * neckWidth;
+
+        // Find the extent of the fret positions relative to scaleLength
+        const minFretPosRelative = fretPositionsRelativeScale[0]; // Should be close to 0
+        const maxFretPosRelative = fretPositionsRelativeScale[fretPositionsRelativeScale.length - 1];
+        const totalFretRangeRelative = maxFretPosRelative - minFretPosRelative;
+
+        fretPositionsRelativeScale.forEach((fretPosRelative, index) => {
             const fretNumber = index;
             const fretElem = document.createElement('div');
             fretElem.classList.add('fret');
-            fretElem.style.left = `${pos * 100}%`;
+
+            // Calculate the position relative to the start of the fretted area
+            const positionWithinFretRange = fretPosRelative - minFretPosRelative;
+
+            // Map this position to the usable neck width
+            const fretPositionOnNeck = (positionWithinFretRange / totalFretRangeRelative) * usableNeckWidth + startOffset;
+
+            fretElem.style.left = `${fretPositionOnNeck}px`;
             ukuleleNeck.appendChild(fretElem);
 
             if (gameInstance.calibratedFrequencies[fretNumber]) {

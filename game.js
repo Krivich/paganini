@@ -56,10 +56,15 @@ export class Game {
     }
 
     getFretPositionOnNeck(fret) {
-        const scaleLength = 380;
-        const fretPos = scaleLength - (scaleLength / Math.pow(2, fret / 12));
-        return (fretPos / scaleLength) * this.ukuleleNeck.offsetWidth;
+        const fretElements = this.ukuleleNeck.querySelectorAll('.fret');
+        if (fret >= 0 && fret < fretElements.length) {
+            return fretElements[fret].offsetLeft;
+        } else {
+            console.error(`Fret index out of bounds: ${fret}`);
+            return 0; // Or some default/error value
+        }
     }
+
 
     createNoteElement(fret) {
         const noteElement = document.createElement('div');
