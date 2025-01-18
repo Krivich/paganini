@@ -1,4 +1,3 @@
-// script.js
 import { Game } from './game.js';
 import { Calibration } from './calibration.js';
 
@@ -14,26 +13,29 @@ document.addEventListener('DOMContentLoaded', () => {
     const songSelect = document.getElementById('songSelect');
     const overlay = document.getElementById('overlay');
     const overlayContent = document.getElementById('overlay-content');
+    const numberOfStrings = 4; // Define the number of strings
 
-    const gameInstance = new Game(gameArea, ukuleleNeck, feedbackDiv);
-    const calibrationInstance = new Calibration(
-        calibrationDiv,
-        calibrationHint,
-        calibrationProgressBar,
-        debugCalibrationState,
-        createFrets
-    );
+    function createStrings() {
+        ukuleleNeck.innerHTML = ''; // Clear existing content (including previous strings and frets)
+        for (let i = 0; i < numberOfStrings; i++) {
+            const stringElement = document.createElement('div');
+            stringElement.classList.add('ukulele-string');
+            stringElement.style.top = `${15 + (i * 20)}%`; // Adjust spacing as needed
+            ukuleleNeck.appendChild(stringElement);
+        }
+        createFrets(); // Re-render frets after strings
+    }
 
     function createFrets() {
         const neckWidth = ukuleleNeck.offsetWidth;
         const scaleLength = 380;
         const fretPositions = [];
-        ukuleleNeck.innerHTML = '';
 
         for (let fret = 1; fret <= calibrationInstance.highCalibrationFret + 1; fret++) {
             const fretPos = scaleLength - (scaleLength / Math.pow(2, fret / 12));
             fretPositions.push(fretPos / scaleLength);
         }
+
         fretPositions.forEach((pos, index) => {
             const fretNumber = index;
             const fretElem = document.createElement('div');
@@ -50,18 +52,27 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
+    const gameInstance = new Game(gameArea, ukuleleNeck, feedbackDiv);
+    const calibrationInstance = new Calibration(
+        calibrationDiv,
+        calibrationHint,
+        calibrationProgressBar,
+        debugCalibrationState,
+        createFrets // Pass createFrets so Calibration can trigger fret creation
+    );
+
     const originalCalculateCalibratedFrequencies = calibrationInstance.calculateCalibratedFrequencies.bind(calibrationInstance);
     calibrationInstance.calculateCalibratedFrequencies = function(...args) {
         const result = originalCalculateCalibratedFrequencies(...args);
         if (this.calibrationState === 'completed') {
-            createFrets();
+            createStrings(); // Create strings after successful calibration
         }
         return result;
     };
 
     const resizeObserver = new ResizeObserver(entries => {
         if (entries[0]) {
-            createFrets();
+            createFrets(); // Keep re-rendering frets on resize
         }
     });
     resizeObserver.observe(ukuleleNeck);
@@ -189,7 +200,6 @@ document.addEventListener('DOMContentLoaded', () => {
         }, duration));
     }
 
-
     songSelect.addEventListener('change', async (event) => {
         const selectedSongFile = event.target.value;
         if (selectedSongFile) {
@@ -203,4 +213,5 @@ document.addEventListener('DOMContentLoaded', () => {
 
     loadSongs();
     setupAudio();
+    createStrings(); // Initial creation of strings
 });

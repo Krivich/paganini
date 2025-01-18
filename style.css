@@ -1,15 +1,20 @@
 body {
     font-family: sans-serif;
     margin: 0;
-    overflow: hidden;
+    overflow: hidden; /* Keep this to prevent scrollbars */
     background-color: #222;
     color: #eee;
+    height: 100vh; /* Make body take up full viewport height */
+}
+
+html {
+    height: 100%; /* Ensure html also takes full height */
 }
 
 #gameArea {
     position: relative;
     width: 100%;
-    height: 80vh;
+    height: calc(100vh - /* Adjust this value */ 100px - 40px); /* Example calculation */
     background-color: #333;
     overflow: hidden;
 }
@@ -25,10 +30,52 @@ body {
     box-shadow: 0 0 10px rgba(0, 0, 0, 0.5);
 }
 
+
+
+.ukulele-string {
+    position: absolute;
+    left: 0;
+    width: 100%;
+    height: 1px;
+    background-color: #bbb;
+    z-index: 0; /* Ensure strings are below frets (z-index: 1) and notes (z-index: 2) */
+}
+
+/* Ukulele Strings (Improved) */
+#ukuleleNeck::before, /* String 1 */
+#ukuleleNeck::after,  /* String 2 */
+#ukuleleNeck::string3, /* String 3 - Requires JS to add this */
+#ukuleleNeck::string4 { /* String 4 - Requires JS to add this */
+    content: '';
+    position: absolute;
+    left: 0;
+    width: 100%;
+    height: 1px;
+    background-color: #bbb;
+}
+
+#ukuleleNeck::before {
+    top: 20%;
+}
+
+#ukuleleNeck::after {
+    top: 45%;
+}
+
+#ukuleleNeck::string3 { /* This won't work without JS to define it */
+    top: 70%;
+}
+
+#ukuleleNeck::string4 { /* This won't work without JS to define it */
+    top: 95%;
+}
+
+
+
 .fret {
     position: absolute;
-    top: 20%; /* Adjust vertical position within neck */
-    height: 60%;
+    top: 0; /* Adjust vertical position within neck */
+    height: 100%;
     width: 4px;
     background-color: gold; /* Golden frets */
 }
@@ -49,6 +96,13 @@ body {
 #controls {
     padding: 20px;
     text-align: center;
+    /* Consider making controls fixed to the bottom if needed */
+    /* position: fixed; */
+    /* bottom: 0; */
+    /* left: 0; */
+    /* width: 100%; */
+    /* background-color: #555;  Optional */
+    /* box-sizing: border-box; Optional if adding background */
 }
 
 #calibration {
@@ -145,8 +199,8 @@ body {
 
 .fret {
     position: absolute;
-    top: 20%; /* Adjust vertical position within neck */
-    height: 60%;
+    top: 0; /* Adjust vertical position within neck */
+    height: 100%;
     width: 4px;
     background-color: gold; /* Golden frets */
     display: flex; /* Use flexbox to position the label */
