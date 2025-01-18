@@ -26,8 +26,43 @@ html {
     width: 80%;
     height: 100px; /* Adjust height */
     background-color: #666; /* Graphite Gray */
-    border-radius: 10px 10px 0 0;
     box-shadow: 0 0 10px rgba(0, 0, 0, 0.5);
+    z-index: 1;
+}
+
+#ukuleleHead {
+    position: absolute;
+    bottom: 0; /* Align with the bottom of the neck */
+    left: 10%; /* Align with the left of the neck */
+    width: 15%; /* Adjust width as needed */
+    height: 100px; /* Adjust height as needed */
+    background-color: #8B4513; /* Dark brown wood */
+    border-radius: 10px 0 0 0; /* Round top-left */
+    transform: translateX(-100%); /* Shift to the left */
+    z-index: 2; /* Ensure it's above the neck */
+}
+
+#ukuleleResonator {
+    position: absolute;
+    bottom: -250px; /* Adjust vertical position */
+    right: -150px; /* Align with the right of the neck */
+    width: 500px; /* Adjust width as needed */
+    height: 500px; /* Adjust height as needed */
+    background-color: #8B4513; /* Dark brown wood */
+    border-radius: 50%; /* Pear shape */
+    transform: translateX(0%); /* Keep at the right */
+    z-index: 0; /* Place it behind the neck */
+    display: flex;
+    justify-content: center;
+}
+
+#soundHole {
+    width: 100px;
+    height: 100px;
+    background-color: black;
+    border-radius: 50%;
+    margin-top: 150px; /* Adjust position */
+    box-shadow: inset 0 0 5px rgba(255, 255, 255, 0.2);
 }
 
 
