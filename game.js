@@ -14,6 +14,7 @@ export class Game {
         this.noteSpawnInterval = 1500; // Adjust as needed
         this.isPaused = false;
         this.activeNoteOnDeck = null;
+        this.fretSpaceCenters = []; // Initialize fretSpaceCenters
     }
 
     loadSong(songData) {
@@ -58,16 +59,40 @@ export class Game {
     }
 
 
+    setFretSpaceCenters(centers) {
+        this.fretSpaceCenters = centers;
+    }
 
     getFretPositionOnNeck(fret) {
-        const fretElements = this.ukuleleNeck.querySelectorAll('.fret');
-        if (fret >= 0 && fret < fretElements.length) {
-            return fretElements[fret].offsetLeft;
-        } else {
+        const ukuleleNeck = document.getElementById('ukuleleNeck');
+        const fretLineElements = this.ukuleleNeck.querySelectorAll('div.fret'); // Target only div elements with the class 'fret'
+        if (fret === 0) {
+            return ukuleleNeck.offsetLeft + (this.ukuleleNeck.offsetWidth * 0.1) / 2;
+        } else if (fret > 0 && fret <= 12) {
+            const fretLineLeft = fretLineElements[fret - 1].offsetLeft;
+            const previousFretLineLeft = (fret > 1) ? fretLineElements[fret - 2].offsetLeft : ukuleleNeck.offsetLeft;
+            return ukuleleNeck.offsetLeft + (previousFretLineLeft + fretLineLeft) / 2;
+        } else if (fret === 13) {
+            const lastFretLineElement = fretLineElements[11]; // The 12th fret line element (index 11)
+            const previousFretLineLeft = fretLineElements[10]; // The 11th fret line element (index 11)
+            return ukuleleNeck.offsetLeft + lastFretLineElement.offsetLeft + (lastFretLineElement.offsetLeft - previousFretLineLeft.offsetLeft) / 2
+        }
+        else if (fret > 13) {
+            const lastFretLineElement = fretLineElements[fretLineElements.length - 1];
+            const secondLastFretLineElement = fretLineElements[fretLineElements.length - 2];
+            const spacing = lastFretLineElement.offsetLeft - secondLastFretLineElement.offsetLeft;
+            return ukuleleNeck.offsetLeft + lastFretElement.offsetLeft + spacing * (fret - fretLineElements.length) + spacing / 2;
+        }
+        else {
             console.error(`Fret index out of bounds: ${fret}`);
-            return 0; // Or some default/error value
+            return 0;
         }
     }
+
+
+
+
+
 
 
     createNoteElement(fret) {

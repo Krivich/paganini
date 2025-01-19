@@ -19,6 +19,7 @@ export class Calibration {
         this.minFrequencyDifference = 100;
         this.stabilityTimeout = null;
         this.createFretsCallback = createFretsCallback;
+        this.hardcodeCalibration = false; // Add a flag for hardcoding
     }
 
     resetCalibration() {
@@ -67,6 +68,20 @@ export class Calibration {
     handleCalibration(frequency, gameInstance) {
         this.debugCalibrationState.textContent = this.calibrationState;
         let progress = 0;
+
+        if (this.hardcodeCalibration) {
+            const hardcodedLow = 340;
+            const hardcodedHigh = 650;
+            const calibratedFreqs = this.calculateCalibratedFrequencies(hardcodedLow, hardcodedHigh);
+            gameInstance.setCalibratedFrequencies(calibratedFreqs);
+            if (this.createFretsCallback) {
+                this.createFretsCallback();
+            }
+            this.calibrationDiv.style.display = 'none';
+            this.calibrationHint.textContent = 'Calibration Hardcoded!';
+            this.calibrationState = 'completed';
+            return; // Exit the function
+        }
 
         const handleStableFrequency = (stableFrequency) => {
             console.log("Stable frequency detected:", stableFrequency.toFixed(2), "in state:", this.calibrationState);

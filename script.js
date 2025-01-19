@@ -31,8 +31,10 @@ document.addEventListener('DOMContentLoaded', () => {
         const neckWidth = ukuleleNeck.offsetWidth;
         const scaleLength = 380;
         const fretPositionsRelativeScale = [];
+        const fretLinePositions = [];
+        const fretSpaceCenters = [];
 
-        for (let fret = 2; fret <= calibrationInstance.highCalibrationFret + 1; fret++) {
+        for (let fret = 1; fret <= calibrationInstance.highCalibrationFret; fret++) {
             const fretPos = scaleLength - (scaleLength / Math.pow(2, fret / 12));
             fretPositionsRelativeScale.push(fretPos);
         }
@@ -40,24 +42,24 @@ document.addEventListener('DOMContentLoaded', () => {
         const usableNeckWidth = 0.80 * neckWidth;
         const startOffset = 0.1 * neckWidth;
 
-        // Find the extent of the fret positions relative to scaleLength
-        const minFretPosRelative = fretPositionsRelativeScale[0]; // Should be close to 0
-        const maxFretPosRelative = fretPositionsRelativeScale[fretPositionsRelativeScale.length - 1];
-        const totalFretRangeRelative = maxFretPosRelative - minFretPosRelative;
-
         fretPositionsRelativeScale.forEach((fretPosRelative, index) => {
-            const fretNumber = index;
+            const fretNumber = index + 1;
             const fretElem = document.createElement('div');
             fretElem.classList.add('fret');
+            fretElem.dataset.fretIndex = fretNumber; // Add the data attribute
 
-            // Calculate the position relative to the start of the fretted area
-            const positionWithinFretRange = fretPosRelative - minFretPosRelative;
 
-            // Map this position to the usable neck width
-            const fretPositionOnNeck = (positionWithinFretRange / totalFretRangeRelative) * usableNeckWidth + startOffset;
+            // Calculate the position relative to the start of the *fretted* area
+            const lastFretPosRelative = fretPositionsRelativeScale[fretPositionsRelativeScale.length - 1];
+            const normalizedFretPos = fretPosRelative / lastFretPosRelative;
+            const fretPositionInUsableArea = normalizedFretPos * usableNeckWidth;
+
+            // Position the fret line, adding the start offset
+            const fretPositionOnNeck = startOffset + fretPositionInUsableArea;
 
             fretElem.style.left = `${fretPositionOnNeck}px`;
             ukuleleNeck.appendChild(fretElem);
+            fretLinePositions.push(fretPositionOnNeck);
 
             if (gameInstance.calibratedFrequencies[fretNumber]) {
                 const freqLabel = document.createElement('span');
@@ -66,7 +68,31 @@ document.addEventListener('DOMContentLoaded', () => {
                 fretElem.appendChild(freqLabel);
             }
         });
+
+        // Calculate Fret Space Centers
+        fretSpaceCenters[0] = startOffset / 2; // Center of the space before the first fret
+
+        for (let i = 0; i < fretLinePositions.length; i++) {
+            const prevFretLinePos = (i === 0) ? startOffset : fretLinePositions[i - 1];
+            fretSpaceCenters[i + 1] = (prevFretLinePos + fretLinePositions[i]) / 2;
+        }
+
+        // For frets beyond the last physical fret (e.g., 13) - extrapolate
+        if (fretLinePositions.length > 1) {
+            const lastFretLinePos = fretLinePositions[fretLinePositions.length - 1];
+            const secondLastFretLinePos = fretLinePositions[fretLinePositions.length - 2];
+            const lastFretSpacing = lastFretLinePos - secondLastFretLinePos;
+            fretSpaceCenters[calibrationInstance.highCalibrationFret + 1] = lastFretLinePos + (lastFretSpacing / 2);
+        } else if (fretLinePositions.length === 1) {
+            fretSpaceCenters[calibrationInstance.highCalibrationFret + 1] = fretLinePositions[0] + (fretLinePositions[0] - startOffset) / 2;
+        }
+
+        gameInstance.setFretSpaceCenters(fretSpaceCenters);
     }
+
+
+
+
 
     const gameInstance = new Game(gameArea, ukuleleNeck, feedbackDiv);
     const calibrationInstance = new Calibration(
@@ -160,10 +186,12 @@ document.addEventListener('DOMContentLoaded', () => {
 
         debugDetectedFrequency.textContent = detectedFrequency.toFixed(0);
 
-        if (maxAmplitude > backgroundVolumeThreshold * 1.5) {
-            calibrationInstance.handleCalibration(detectedFrequency, gameInstance);
-        } else if (calibrationInstance.calibrationState !== 'completed'){
-            calibrationHint.textContent = "Play a clear note louder than background noise.";
+        if (calibrationInstance.calibrationState !== 'completed') {
+            if (maxAmplitude > backgroundVolumeThreshold * 1.5) {
+                calibrationInstance.handleCalibration(detectedFrequency, gameInstance);
+            } else {
+                calibrationHint.textContent = "Play a clear note louder than background noise.";
+            }
         }
 
         if (gameInstance.isPlaying && calibrationInstance.calibrationState === 'completed') {
