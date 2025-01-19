@@ -61,12 +61,12 @@ document.addEventListener('DOMContentLoaded', () => {
             ukuleleNeck.appendChild(fretElem);
             fretLinePositions.push(fretPositionOnNeck);
 
-            if (gameInstance.calibratedFrequencies[fretNumber]) {
-                const freqLabel = document.createElement('span');
-                freqLabel.classList.add('fret-frequency-label');
-                freqLabel.textContent = gameInstance.calibratedFrequencies[fretNumber].toFixed(0);
-                fretElem.appendChild(freqLabel);
-            }
+            // if (gameInstance.calibratedFrequencies[fretNumber]) {
+            //     const freqLabel = document.createElement('span');
+            //     freqLabel.classList.add('fret-frequency-label');
+            //     freqLabel.textContent = gameInstance.calibratedFrequencies[fretNumber].toFixed(0);
+            //     fretElem.appendChild(freqLabel);
+            // }
         });
 
         // Calculate Fret Space Centers
