@@ -105,6 +105,14 @@ html {
     background-color: gold;
     z-index: 4;
 }
+.fret-frequency-label {
+    position: absolute;
+    bottom: -20px; /* Adjust position below the fret */
+    font-size: 10px;
+    color: lightgray;
+    white-space: nowrap;
+    text-align: center;
+}
 
 .note {
     position: absolute;
@@ -118,6 +126,27 @@ html {
     font-size: 20px;
     white-space: nowrap;
     z-index: 5;
+}
+.note span {
+    display: block;
+}
+.note span:nth-child(2) {
+    font-size: 0.6em; /* Adjust as needed */
+}
+
+.note.disappearing {
+    animation: disappearEffect 0.5s forwards; /* Adjust duration as needed */
+}
+
+@keyframes disappearEffect {
+    0% {
+        opacity: 1;
+        transform: scale(1);
+    }
+    100% {
+        opacity: 0;
+        transform: scale(0.5);
+    }
 }
 
 #controls {

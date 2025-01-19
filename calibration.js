@@ -115,7 +115,7 @@ export class Calibration {
                                 this.createFretsCallback();
                             }
                             this.calibrationDiv.style.display = 'none';
-                            document.getElementById('startButton').style.display = 'block';
+                            // document.getElementById('startButton').style.display = 'block';
                             this.calibrationHint.textContent = 'Calibration Complete! You can now start playing.';
                             console.log("Calibration completed successfully.");
                         }

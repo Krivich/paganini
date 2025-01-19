@@ -1,3 +1,4 @@
+// game.js
 export class Game {
     constructor(gameArea, ukuleleNeck, feedbackDiv) {
         this.gameArea = gameArea;
@@ -44,16 +45,19 @@ export class Game {
 
     spawnNextNote() {
         if (this.currentNoteIndex < this.songData.length) {
-            const fret = this.songData[this.currentNoteIndex];
-            const noteElement = this.createNoteElement(fret);
-            const fretRelativePosition = this.getFretPositionOnNeck(fret);
-            noteElement.style.left = `${this.ukuleleNeck.offsetLeft + fretRelativePosition}px`;
+            const fretIndex = this.songData[this.currentNoteIndex]; // Assuming songData is 0-based
+
+            const noteElement = this.createNoteElement(fretIndex);
+            const fretRelativePosition = this.getFretPositionOnNeck(fretIndex);
+            noteElement.style.left = `${fretRelativePosition}px`;
             this.gameArea.appendChild(noteElement);
             this.notes.push(noteElement);
-            noteElement.dataset.fret = fret;
+            noteElement.dataset.fret = fretIndex;
             this.currentNoteIndex++;
         }
     }
+
+
 
     getFretPositionOnNeck(fret) {
         const fretElements = this.ukuleleNeck.querySelectorAll('.fret');
@@ -73,7 +77,7 @@ export class Game {
         const fretSpan = document.createElement('span');
         fretSpan.textContent = fret;
         const freqSpan = document.createElement('span');
-        freqSpan.textContent = expectedFreq ? expectedFreq.toFixed(1) + ' Hz' : '?';
+        freqSpan.textContent = expectedFreq ? expectedFreq.toFixed(0) : '?';
         noteElement.appendChild(fretSpan);
         noteElement.appendChild(freqSpan);
         noteElement.dataset.expectedFrequency = expectedFreq;
@@ -133,11 +137,13 @@ export class Game {
             this.feedbackDiv.textContent = 'Correct!';
             this.animateNoteDisappearance(noteElement);
         } else {
-            const expectedFrequency = noteElement.dataset.expectedFrequency;
-            this.feedbackDiv.textContent = `Miss! Expected Frequency: ${expectedFrequency ? expectedFrequency.toFixed(1) : 'N/A'} Hz`;
+            const expectedFrequencyStr = noteElement.dataset.expectedFrequency;
+            const expectedFrequency = parseFloat(expectedFrequencyStr);
+            this.feedbackDiv.textContent = `Miss! Expected Frequency: ${expectedFrequency ? expectedFrequency.toFixed(1) : 'N/A'}`;
             noteElement.remove();
         }
     }
+
 
     animateNoteDisappearance(noteElement) {
         noteElement.classList.add('disappearing'); // Apply CSS animation

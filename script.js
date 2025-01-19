@@ -1,3 +1,4 @@
+// script.js
 import { Game } from './game.js';
 import { Calibration } from './calibration.js';
 
@@ -31,13 +32,13 @@ document.addEventListener('DOMContentLoaded', () => {
         const scaleLength = 380;
         const fretPositionsRelativeScale = [];
 
-        for (let fret = 1; fret <= calibrationInstance.highCalibrationFret + 1; fret++) {
+        for (let fret = 2; fret <= calibrationInstance.highCalibrationFret + 1; fret++) {
             const fretPos = scaleLength - (scaleLength / Math.pow(2, fret / 12));
             fretPositionsRelativeScale.push(fretPos);
         }
 
-        const usableNeckWidth = 0.90 * neckWidth;
-        const startOffset = 0.05 * neckWidth;
+        const usableNeckWidth = 0.80 * neckWidth;
+        const startOffset = 0.1 * neckWidth;
 
         // Find the extent of the fret positions relative to scaleLength
         const minFretPosRelative = fretPositionsRelativeScale[0]; // Should be close to 0
