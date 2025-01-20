@@ -1,30 +1,22 @@
-// game.js
 export class Game {
-    constructor(gameArea, ukuleleNeck, feedbackDiv) {
+    constructor(gameArea, feedbackDiv, instrument) {
         this.gameArea = gameArea;
-        this.ukuleleNeck = ukuleleNeck;
         this.feedbackDiv = feedbackDiv;
-        this.songData = []; // Initialize as empty
+        this.instrument = instrument;
+        this.songData = [];
         this.currentNoteIndex = 0;
-        this.notes = [];
+        this.activeNotes = []; // Now handles multiple simultaneous notes
         this.fallSpeed = 2;
         this.isPlaying = false;
-        this.calibratedFrequencies = {};
         this.nextNoteSpawnTime = 0;
-        this.noteSpawnInterval = 1500; // Adjust as needed
+        this.noteSpawnInterval = 1500;
         this.isPaused = false;
-        this.activeNoteOnDeck = null;
-        this.fretSpaceCenters = []; // Initialize fretSpaceCenters
     }
 
     loadSong(songData) {
         this.songData = songData.data;
-        this.feedbackDiv.textContent = `Song loaded: ${this.songTitle || 'Unknown'}`;
+        this.feedbackDiv.textContent = `Song loaded: ${songData.title || 'Unknown'}`;
         this.currentNoteIndex = 0;
-    }
-
-    setCalibratedFrequencies(frequencies) {
-        this.calibratedFrequencies = frequencies;
     }
 
     startGame() {
@@ -35,77 +27,37 @@ export class Game {
         if (this.isPlaying) return;
         this.isPlaying = true;
         this.currentNoteIndex = 0;
-        this.notes = [];
-        this.gameArea.querySelectorAll('.note').forEach(n => n.remove());
-        this.feedbackDiv.textContent = `Playing: ${this.songTitle || 'Selected Song'}`;
+        this.activeNotes = [];
+        this.gameArea.innerHTML = '';
+        this.feedbackDiv.textContent = `Playing: ${this.songData.title || 'Selected Song'}`;
         this.nextNoteSpawnTime = performance.now() + this.noteSpawnInterval;
         this.isPaused = false;
-        this.activeNoteOnDeck = null;
         this.gameLoop();
     }
 
-    spawnNextNote() {
+    spawnNextNotes() {
         if (this.currentNoteIndex < this.songData.length) {
-            const fretIndex = this.songData[this.currentNoteIndex]; // Assuming songData is 0-based
+            const notesToSpawn = Array.isArray(this.songData[this.currentNoteIndex])
+                ? this.songData[this.currentNoteIndex]
+                : [this.songData[this.currentNoteIndex]];
 
-            const noteElement = this.createNoteElement(fretIndex);
-            const fretRelativePosition = this.getFretPositionOnNeck(fretIndex);
-            noteElement.style.left = `${fretRelativePosition}px`;
-            this.gameArea.appendChild(noteElement);
-            this.notes.push(noteElement);
-            noteElement.dataset.fret = fretIndex;
+            notesToSpawn.forEach(noteId => {
+                const noteElement = this.createNoteElement(noteId);
+                const position = this.instrument.getNotePosition(noteId, this.gameArea);
+                noteElement.style.left = `${position.left}px`;
+                noteElement.style.top = `${position.top}px`;
+                this.gameArea.appendChild(noteElement);
+                this.activeNotes.push({ id: noteId, element: noteElement });
+            });
             this.currentNoteIndex++;
         }
     }
 
-
-    setFretSpaceCenters(centers) {
-        this.fretSpaceCenters = centers;
-    }
-
-    getFretPositionOnNeck(fret) {
-        const ukuleleNeck = document.getElementById('ukuleleNeck');
-        const fretLineElements = this.ukuleleNeck.querySelectorAll('div.fret'); // Target only div elements with the class 'fret'
-        if (fret === 0) {
-            return ukuleleNeck.offsetLeft + (this.ukuleleNeck.offsetWidth * 0.1) / 2;
-        } else if (fret > 0 && fret <= 12) {
-            const fretLineLeft = fretLineElements[fret - 1].offsetLeft;
-            const previousFretLineLeft = (fret > 1) ? fretLineElements[fret - 2].offsetLeft : ukuleleNeck.offsetLeft;
-            return ukuleleNeck.offsetLeft + (previousFretLineLeft + fretLineLeft) / 2;
-        } else if (fret === 13) {
-            const lastFretLineElement = fretLineElements[11]; // The 12th fret line element (index 11)
-            const previousFretLineLeft = fretLineElements[10]; // The 11th fret line element (index 11)
-            return ukuleleNeck.offsetLeft + lastFretLineElement.offsetLeft + (lastFretLineElement.offsetLeft - previousFretLineLeft.offsetLeft) / 2
-        }
-        else if (fret > 13) {
-            const lastFretLineElement = fretLineElements[fretLineElements.length - 1];
-            const secondLastFretLineElement = fretLineElements[fretLineElements.length - 2];
-            const spacing = lastFretLineElement.offsetLeft - secondLastFretLineElement.offsetLeft;
-            return ukuleleNeck.offsetLeft + lastFretElement.offsetLeft + spacing * (fret - fretLineElements.length) + spacing / 2;
-        }
-        else {
-            console.error(`Fret index out of bounds: ${fret}`);
-            return 0;
-        }
-    }
-
-
-
-
-
-
-
-    createNoteElement(fret) {
+    createNoteElement(noteId) {
         const noteElement = document.createElement('div');
         noteElement.classList.add('note');
-        const expectedFreq = this.calibratedFrequencies[fret];
-        const fretSpan = document.createElement('span');
-        fretSpan.textContent = fret;
-        const freqSpan = document.createElement('span');
-        freqSpan.textContent = expectedFreq ? expectedFreq.toFixed(0) : '?';
-        noteElement.appendChild(fretSpan);
-        noteElement.appendChild(freqSpan);
-        noteElement.dataset.expectedFrequency = expectedFreq;
+        noteElement.textContent = noteId; // Display the note ID for now
+        noteElement.dataset.noteId = noteId;
         return noteElement;
     }
 
@@ -113,24 +65,23 @@ export class Game {
         if (!this.isPlaying) return;
 
         if (!this.isPaused && currentTime >= this.nextNoteSpawnTime && this.currentNoteIndex < this.songData.length) {
-            this.spawnNextNote();
+            this.spawnNextNotes();
             this.nextNoteSpawnTime = currentTime + this.noteSpawnInterval;
         }
 
-        if (!this.isPaused) {
-            this.notes.forEach(note => {
-                const currentTop = parseFloat(note.style.top || 0);
-                note.style.top = `${currentTop + this.fallSpeed}px`;
-                this.checkNoteAtDeck(note);
-                if (parseFloat(note.style.top) > this.gameArea.clientHeight) {
-                    this.destroyNote(note, false); // Missed note
-                }
-            });
-        }
+        this.activeNotes.forEach(noteObj => {
+            const noteElement = noteObj.element;
+            const currentTop = parseFloat(noteElement.style.top || 0);
+            noteElement.style.top = `${currentTop + this.fallSpeed}px`;
+            this.checkNoteAtBottom(noteObj);
+            if (parseFloat(noteElement.style.top) > this.gameArea.clientHeight) {
+                this.destroyNote(noteObj, false); // Missed note
+            }
+        });
 
-        this.notes = this.notes.filter(note => note.parentNode);
+        this.activeNotes = this.activeNotes.filter(noteObj => noteObj.element.parentNode);
 
-        if (this.notes.length === 0 && this.currentNoteIndex >= this.songData.length) {
+        if (this.activeNotes.length === 0 && this.currentNoteIndex >= this.songData.length) {
             this.feedbackDiv.textContent = 'Finished!';
             this.isPlaying = false;
         }
@@ -138,40 +89,36 @@ export class Game {
         requestAnimationFrame(this.gameLoop.bind(this));
     }
 
-    checkNoteAtDeck(note) {
-        const neckRect = this.ukuleleNeck.getBoundingClientRect();
-        const noteRect = note.getBoundingClientRect();
-        if (noteRect.bottom > neckRect.top && noteRect.bottom < neckRect.bottom) {
-            if (!note.classList.contains('at-deck')) {
-                note.classList.add('at-deck');
-                this.activeNoteOnDeck = note;
+    checkNoteAtBottom(noteObj) {
+        const noteElement = noteObj.element;
+        const gameAreaRect = this.gameArea.getBoundingClientRect();
+        const noteRect = noteElement.getBoundingClientRect();
+        const detectionThreshold = 20; // Adjust as needed
+
+        if (noteRect.bottom > gameAreaRect.bottom - detectionThreshold) {
+            if (!noteElement.classList.contains('at-bottom')) {
+                noteElement.classList.add('at-bottom');
                 this.isPaused = true;
             }
-        } else if (note.classList.contains('at-deck')) {
-            note.classList.remove('at-deck');
-            if (this.activeNoteOnDeck === note) {
-                this.activeNoteOnDeck = null;
-            }
+        } else if (noteElement.classList.contains('at-bottom')) {
+            noteElement.classList.remove('at-bottom');
         }
     }
 
-    destroyNote(noteElement, isCorrect = false) {
-        if (!noteElement.parentNode) return; // Avoid errors if already removed
+    destroyNote(noteObj, isCorrect = false) {
+        if (!noteObj.element.parentNode) return;
 
         if (isCorrect) {
             this.feedbackDiv.textContent = 'Correct!';
-            this.animateNoteDisappearance(noteElement);
+            this.animateNoteDisappearance(noteObj.element);
         } else {
-            const expectedFrequencyStr = noteElement.dataset.expectedFrequency;
-            const expectedFrequency = parseFloat(expectedFrequencyStr);
-            this.feedbackDiv.textContent = `Miss! Expected Frequency: ${expectedFrequency ? expectedFrequency.toFixed(1) : 'N/A'}`;
-            noteElement.remove();
+            this.feedbackDiv.textContent = `Missed note: ${noteObj.id}`;
+            noteObj.element.remove();
         }
     }
 
-
     animateNoteDisappearance(noteElement) {
-        noteElement.classList.add('disappearing'); // Apply CSS animation
+        noteElement.classList.add('disappearing');
         noteElement.addEventListener('animationend', () => {
             if (noteElement.parentNode) {
                 noteElement.remove();
@@ -180,31 +127,23 @@ export class Game {
     }
 
     matchNote(detectedFrequency) {
-        if (this.isPaused && this.activeNoteOnDeck) {
-            const targetFret = parseInt(this.activeNoteOnDeck.dataset.fret);
-            const expectedFrequency = this.calibratedFrequencies[targetFret];
-            const delta = this.calculateFrequencyDelta(targetFret);
-            document.getElementById('debugTargetFret').textContent = targetFret;
-            document.getElementById('debugExpectedFrequency').textContent = expectedFrequency ? expectedFrequency.toFixed(2) : 'N/A';
+        if (!this.isPaused) return;
 
-            if (expectedFrequency && Math.abs(detectedFrequency - expectedFrequency) < delta) {
-                this.destroyNote(this.activeNoteOnDeck, true);
-                this.activeNoteOnDeck = null;
-                this.isPaused = false;
+        this.activeNotes.forEach(noteObj => {
+            if (noteObj.element.classList.contains('at-bottom')) {
+                const noteId = parseInt(noteObj.element.dataset.noteId);
+                const expectedFrequency = this.instrument.getExpectedFrequency(noteId);
+                const delta = this.instrument.calculateFrequencyDelta(noteId);
+
+                document.getElementById('debugTargetNoteId').textContent = noteId;
+                document.getElementById('debugExpectedFrequency').textContent = expectedFrequency ? expectedFrequency.toFixed(2) : 'N/A';
+
+                if (expectedFrequency && Math.abs(detectedFrequency - expectedFrequency) < delta) {
+                    this.destroyNote(noteObj, true);
+                    this.activeNotes = this.activeNotes.filter(n => n !== noteObj);
+                    this.isPaused = false;
+                }
             }
-        }
-    }
-
-    calculateFrequencyDelta(fret) {
-        const freq1 = this.calibratedFrequencies[fret];
-        const freq2 = this.calibratedFrequencies[parseInt(fret) + 1];
-        let dynamicDelta = 20; // Default if adjacent frets are not calibrated
-
-        if (freq1 && freq2) {
-            dynamicDelta = Math.abs(freq2 - freq1) * 0.4;
-        }
-
-        const fixedTolerance = 15; // Adjust this value based on testing
-        return Math.max(dynamicDelta, fixedTolerance);
+        });
     }
 }

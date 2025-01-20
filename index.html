@@ -1,15 +1,22 @@
-<!--index.html-->
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Paganini - Ukulele</title>
+    <title>Paganini - Instruments</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
 
 <div class="top-bar">
-    <h1>Paganini - Ukulele</h1>
+    <h1>Paganini - Instruments</h1>
+    <div class="instrument-selector">
+        <label for="instrumentSelect">Select Instrument:</label>
+        <select id="instrumentSelect">
+            <option value="ukulele">Ukulele</option>
+            <option value="piano">Piano</option>
+            <option value="saxophone">Saxophone</option>
+        </select>
+    </div>
     <div class="song-selector">
         <select id="songSelect">
             <option value="">-- Select a Song --</option>
@@ -17,12 +24,12 @@
     </div>
 </div>
 
+<div id="instrumentArea">
+    <!-- Instrument specific visuals will be rendered here -->
+</div>
+
 <div id="gameArea">
-    <div id="ukuleleHead"></div>
-    <div id="ukuleleNeck"></div>
-    <div id="ukuleleResonator">
-        <div id="soundHole"></div>
-    </div>
+    <!-- Notes will fall within this area -->
 </div>
 
 <div id="controls">
@@ -32,12 +39,12 @@
             <div id="calibrationProgressBar"></div>
         </div>
     </div>
-    <p>Play on a single ukulele string, matching the falling numbers!</p>
+    <p>Play the notes as they reach the bottom!</p>
     <div id="feedback"></div>
     <div id="debugInfo">
         <div>Calibration State: <span id="debugCalibrationState"></span></div>
         <div>Detected Frequency: <span id="debugDetectedFrequency"></span> Hz</div>
-        <div>Target Fret: <span id="debugTargetFret"></span></div>
+        <div>Target Note ID: <span id="debugTargetNoteId"></span></div>
         <div>Expected Frequency: <span id="debugExpectedFrequency"></span> Hz</div>
     </div>
 </div>
@@ -49,8 +56,6 @@
 </div>
 
 <script type="module" src="script.js"></script>
-<script type="module" src="game.js"></script>
-<script type="module" src="calibration.js"></script>
 
 </body>
 </html>

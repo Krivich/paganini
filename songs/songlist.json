@@ -1,7 +1,5 @@
 [
-  "Чунга-Чанга.json",
-  "В-лесу-родилась-ёлочка.json",
-  "Кузнечик.json",
-  "Пираты-Карибского-моря.json"
-
+  { "file": "Чунга-Чанга.json", "instruments": ["ukulele"] },
+  { "file": "Чунга-Чанга-Пианино.json", "instruments": ["piano"] },
+  { "file": "Чунга-Чанга-Саксофон.json", "instruments": ["saxophone"] }
 ]
