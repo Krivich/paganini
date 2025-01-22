@@ -87,4 +87,13 @@ export class Saxophone extends Instrument {
     calculateFrequencyDelta(noteId) {
         return 30; // Placeholder
     }
+
+    // Implementation of getDeckTop for Saxophone (adjust as needed)
+    getDeckTop() {
+        const saxophoneKeysElement = document.getElementById('saxophoneKeys');
+        if (saxophoneKeysElement) {
+            return saxophoneKeysElement.getBoundingClientRect().top;
+        }
+        return 0;
+    }
 }

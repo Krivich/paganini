@@ -153,7 +153,14 @@ document.addEventListener('DOMContentLoaded', async () => {
     async function initializeInstrument(instrumentName) {
         instrumentArea.innerHTML = ''; // Clear previous instrument
         currentInstrument = InstrumentFactory.createInstrument(instrumentName, instrumentArea);
-        if (currentInstrument.calibration) {
+        if (currentInstrument) {
+            // Set deck position immediately after drawing the instrument
+            if (currentGame) {
+                currentGame.instrument = currentInstrument;
+                currentGame.setDeckPosition();
+            }
+        }
+        if (currentInstrument && currentInstrument.calibration) {
             currentInstrument.calibration.resetCalibration();
             currentInstrument.calibration.startCalibration(() => {
                 console.log('Calibration complete callback');
@@ -167,8 +174,8 @@ document.addEventListener('DOMContentLoaded', async () => {
     instrumentSelect.addEventListener('change', async (event) => {
         const selectedInstrument = event.target.value;
         await initializeInstrument(selectedInstrument);
-        songSelect.value = ''; // Reset song selection
-        currentGame = null;
+        songSelect.value = '';
+        currentGame = null; // Reset current game when instrument changes
     });
 
     songSelect.addEventListener('change', async (event) => {
@@ -178,6 +185,8 @@ document.addEventListener('DOMContentLoaded', async () => {
             if (songData) {
                 currentGame = new Game(gameArea, feedbackDiv, currentInstrument);
                 currentGame.loadSong(songData);
+                // Ensure deck position is set after game and instrument are ready
+                currentGame.setDeckPosition();
                 await showOverlay('Get Ready', 3000);
                 currentGame.startGame();
             }

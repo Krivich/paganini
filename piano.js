@@ -75,4 +75,13 @@ export class Piano extends Instrument {
     calculateFrequencyDelta(keyNumber) {
         return 20; // A generic delta for piano for now
     }
+
+    // Implementation of getDeckTop for Piano (top of the keys)
+    getDeckTop() {
+        const pianoKeysElement = document.getElementById('pianoKeys');
+        if (pianoKeysElement) {
+            return pianoKeysElement.getBoundingClientRect().top;
+        }
+        return 0;
+    }
 }

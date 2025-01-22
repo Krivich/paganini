@@ -19,4 +19,9 @@ export class Instrument {
     calculateFrequencyDelta(noteId) {
         throw new Error("calculateFrequencyDelta method must be implemented.");
     }
+
+    // New method to get the top position of the "deck"
+    getDeckTop() {
+        return 0; // Default implementation, can be overridden by subclasses
+    }
 }

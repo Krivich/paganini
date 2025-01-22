@@ -78,4 +78,13 @@ export class Ukulele extends Instrument {
         const fixedTolerance = 15;
         return Math.max(dynamicDelta, fixedTolerance);
     }
+
+    // Implementation of getDeckTop for Ukulele
+    getDeckTop() {
+        const neckElement = document.getElementById('ukuleleNeck');
+        if (neckElement) {
+            return neckElement.getBoundingClientRect().top;
+        }
+        return 0;
+    }
 }

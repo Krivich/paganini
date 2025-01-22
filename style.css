@@ -1,4 +1,5 @@
 /*style.css*/
+
 body {
     font-family: sans-serif;
     margin: 0;
@@ -20,6 +21,7 @@ html {
     display: flex;
     justify-content: space-between;
     align-items: center;
+    flex-shrink: 0; /* Prevent shrinking */
 }
 
 .instrument-selector, .song-selector {
@@ -28,23 +30,30 @@ html {
     gap: 10px;
 }
 
-#instrumentArea {
+#gameArea {
     position: relative;
     width: 100%;
-    flex-grow: 1;
+    flex-grow: 1; /* Takes up remaining space */
     background-color: #333;
     overflow: hidden;
 }
 
-#gameArea {
+#instrumentArea {
     position: absolute;
-    top: 0;
+    bottom: 0;
     left: 0;
     width: 100%;
-    height: 100%;
-    overflow: hidden;
-    pointer-events: none; /* Ensure clicks pass through to the instrument area */
+    /* Height will be determined by the instrument's needs */
 }
+
+#controls {
+    padding: 20px;
+    text-align: center;
+    background-color: #555;
+    box-sizing: border-box;
+    flex-shrink: 0; /* Prevent shrinking */
+}
+
 
 /* Ukulele Styles */
 #ukuleleNeck {
@@ -198,13 +207,6 @@ html {
 }
 
 /* Controls and Overlay Styles (No significant changes) */
-#controls {
-    padding: 20px;
-    text-align: center;
-    background-color: #555;
-    box-sizing: border-box;
-}
-
 #calibration {
     margin-bottom: 10px;
 }

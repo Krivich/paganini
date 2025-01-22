@@ -1,3 +1,4 @@
+// game.js
 export class Game {
     constructor(gameArea, feedbackDiv, instrument) {
         this.gameArea = gameArea;
@@ -5,12 +6,14 @@ export class Game {
         this.instrument = instrument;
         this.songData = [];
         this.currentNoteIndex = 0;
-        this.activeNotes = []; // Now handles multiple simultaneous notes
+        this.activeNotes = [];
         this.fallSpeed = 2;
         this.isPlaying = false;
         this.nextNoteSpawnTime = 0;
         this.noteSpawnInterval = 1500;
         this.isPaused = false;
+        this.deckPosition = 100;
+        this.hitThreshold = 50;
     }
 
     loadSong(songData) {
@@ -20,19 +23,26 @@ export class Game {
     }
 
     startGame() {
-        if (!this.songData || this.songData.length === 0) {
-            this.feedbackDiv.textContent = "Please select a song.";
-            return;
-        }
+        if (!this.songData || this.songData.length === 0) return;
         if (this.isPlaying) return;
         this.isPlaying = true;
         this.currentNoteIndex = 0;
         this.activeNotes = [];
-        this.gameArea.innerHTML = '';
+        // this.gameArea.innerHTML = '';
         this.feedbackDiv.textContent = `Playing: ${this.songData.title || 'Selected Song'}`;
         this.nextNoteSpawnTime = performance.now() + this.noteSpawnInterval;
         this.isPaused = false;
+        this.setDeckPosition(); // Ensure deck position is set
         this.gameLoop();
+    }
+
+    setDeckPosition() {
+        if (this.instrument) {
+            this.deckPosition = this.instrument.getDeckTop();
+        } else {
+            console.warn('Instrument not set, cannot determine deck position.');
+        }
+        console.log('Deck position:', this.deckPosition);
     }
 
     spawnNextNotes() {
@@ -45,7 +55,7 @@ export class Game {
                 const noteElement = this.createNoteElement(noteId);
                 const position = this.instrument.getNotePosition(noteId, this.gameArea);
                 noteElement.style.left = `${position.left}px`;
-                noteElement.style.top = `${position.top}px`;
+                noteElement.style.top = '0px';
                 this.gameArea.appendChild(noteElement);
                 this.activeNotes.push({ id: noteId, element: noteElement });
             });
@@ -56,7 +66,7 @@ export class Game {
     createNoteElement(noteId) {
         const noteElement = document.createElement('div');
         noteElement.classList.add('note');
-        noteElement.textContent = noteId; // Display the note ID for now
+        noteElement.textContent = noteId;
         noteElement.dataset.noteId = noteId;
         return noteElement;
     }
@@ -69,15 +79,14 @@ export class Game {
             this.nextNoteSpawnTime = currentTime + this.noteSpawnInterval;
         }
 
-        this.activeNotes.forEach(noteObj => {
-            const noteElement = noteObj.element;
-            const currentTop = parseFloat(noteElement.style.top || 0);
-            noteElement.style.top = `${currentTop + this.fallSpeed}px`;
-            this.checkNoteAtBottom(noteObj);
-            if (parseFloat(noteElement.style.top) > this.gameArea.clientHeight) {
-                this.destroyNote(noteObj, false); // Missed note
-            }
-        });
+        if (!this.isPaused) { // Only move notes if not paused
+            this.activeNotes.forEach(noteObj => {
+                const noteElement = noteObj.element;
+                const currentTop = parseFloat(noteElement.style.top || 0);
+                noteElement.style.top = `${currentTop + this.fallSpeed}px`;
+                this.checkNoteCollision(noteObj);
+            });
+        }
 
         this.activeNotes = this.activeNotes.filter(noteObj => noteObj.element.parentNode);
 
@@ -89,19 +98,21 @@ export class Game {
         requestAnimationFrame(this.gameLoop.bind(this));
     }
 
-    checkNoteAtBottom(noteObj) {
+    checkNoteCollision(noteObj) {
         const noteElement = noteObj.element;
-        const gameAreaRect = this.gameArea.getBoundingClientRect();
         const noteRect = noteElement.getBoundingClientRect();
-        const detectionThreshold = 20; // Adjust as needed
+        const deckTop = this.deckPosition;
 
-        if (noteRect.bottom > gameAreaRect.bottom - detectionThreshold) {
-            if (!noteElement.classList.contains('at-bottom')) {
-                noteElement.classList.add('at-bottom');
-                this.isPaused = true;
+        if (noteRect.bottom > deckTop && !noteElement.classList.contains('at-deck')) {
+            noteElement.classList.add('at-deck');
+            if (!this.isPaused) {
+                console.log('Leading note reached deck. Freezing.');
+                this.isPaused = true; // Freeze when the leading note hits the deck
             }
-        } else if (noteElement.classList.contains('at-bottom')) {
-            noteElement.classList.remove('at-bottom');
+        }
+
+        if (noteRect.bottom > window.innerHeight) {
+            this.destroyNote(noteObj, false);
         }
     }
 
@@ -127,23 +138,33 @@ export class Game {
     }
 
     matchNote(detectedFrequency) {
-        if (!this.isPaused) return;
+
+        const deckTop = this.deckPosition;
 
         this.activeNotes.forEach(noteObj => {
-            if (noteObj.element.classList.contains('at-bottom')) {
-                const noteId = parseInt(noteObj.element.dataset.noteId);
+            const noteElement = noteObj.element;
+            const noteRect = noteElement.getBoundingClientRect();
+
+            if (noteRect.bottom > deckTop - this.hitThreshold) {
+                const noteId = parseInt(noteElement.dataset.noteId);
                 const expectedFrequency = this.instrument.getExpectedFrequency(noteId);
                 const delta = this.instrument.calculateFrequencyDelta(noteId);
 
                 document.getElementById('debugTargetNoteId').textContent = noteId;
                 document.getElementById('debugExpectedFrequency').textContent = expectedFrequency ? expectedFrequency.toFixed(2) : 'N/A';
 
+                console.log(`Match Attempt - Note ID: ${noteId}, Detected: ${detectedFrequency.toFixed(2)}, Expected: ${expectedFrequency ? expectedFrequency.toFixed(2) : 'N/A'}, Delta: ${delta}`);
+
                 if (expectedFrequency && Math.abs(detectedFrequency - expectedFrequency) < delta) {
+                    console.log('Match Found! Destroying note.');
                     this.destroyNote(noteObj, true);
                     this.activeNotes = this.activeNotes.filter(n => n !== noteObj);
                     this.isPaused = false;
+                } else {
+                    console.log('No Match.');
                 }
             }
         });
     }
+
 }
