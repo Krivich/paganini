@@ -37,7 +37,7 @@ export class Ukulele extends Instrument {
             const normalizedFretPos = fretPos / scaleLength;
             const fretElem = document.createElement('div');
             fretElem.classList.add('fret');
-            fretElem.style.left = `${normalizedFretPos * neckWidth}px`;
+            fretElem.style.left = `${normalizedFretPos * neckWidth * 1.9}px`;
             neckElement.appendChild(fretElem);
         }
     }
@@ -50,16 +50,21 @@ export class Ukulele extends Instrument {
 
         let leftPosition;
         if (fret === 0) {
-            leftPosition = neckRect.left + (neckRect.width * 0.05); // Approximate open string position
+            leftPosition = neckRect.left; // Approximate open string position
         } else if (fret > 0 && fret <= fretElements.length) {
             const fretRect = fretElements[fret - 1].getBoundingClientRect();
             leftPosition = fretRect.left + fretRect.width / 2 - gameArea.offsetLeft;
         } else {
-            leftPosition = 0;
+            let lastFret = fretElements[fretElements.length - 1].getBoundingClientRect();
+            let preLastFret = fretElements[fretElements.length - 2].getBoundingClientRect();
+            leftPosition = lastFret.left + lastFret.width / 2 - gameArea.offsetLeft +
+                (lastFret.left - preLastFret.left) * (fret - fretElements.length);
         }
 
         return { left: leftPosition }; // Only horizontal position
     }
+
+
 
 
     getExpectedFrequency(fret) {

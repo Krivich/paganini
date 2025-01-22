@@ -1,4 +1,3 @@
-// game.js
 export class Game {
     constructor(gameArea, feedbackDiv, instrument) {
         this.gameArea = gameArea;
@@ -9,11 +8,11 @@ export class Game {
         this.activeNotes = [];
         this.fallSpeed = 2;
         this.isPlaying = false;
-        this.nextNoteSpawnTime = 0;
-        this.noteSpawnInterval = 1500;
         this.isPaused = false;
-        this.deckPosition = 100;
+        this.deckPosition = 0;
         this.hitThreshold = 50;
+        this.spawnDistanceThreshold = gameArea.offsetHeight / 4; // Distance threshold to spawn new notes
+        this.isShifting = false; // Flag to indicate if notes are currently shifting
     }
 
     loadSong(songData) {
@@ -30,19 +29,21 @@ export class Game {
         this.activeNotes = [];
         // this.gameArea.innerHTML = '';
         this.feedbackDiv.textContent = `Playing: ${this.songData.title || 'Selected Song'}`;
-        this.nextNoteSpawnTime = performance.now() + this.noteSpawnInterval;
         this.isPaused = false;
-        this.setDeckPosition(); // Ensure deck position is set
+        this.setDeckPosition();
+        this.spawnNextNotes(); // Spawn initial notes to start the fall
         this.gameLoop();
     }
 
     setDeckPosition() {
         if (this.instrument) {
             this.deckPosition = this.instrument.getDeckTop();
+            console.log('Deck position updated by instrument:', this.deckPosition);
         } else {
             console.warn('Instrument not set, cannot determine deck position.');
+            this.deckPosition = this.gameArea.offsetHeight - 50;
         }
-        console.log('Deck position:', this.deckPosition);
+        console.log('Final Deck position:', this.deckPosition);
     }
 
     spawnNextNotes() {
@@ -71,15 +72,29 @@ export class Game {
         return noteElement;
     }
 
-    gameLoop(currentTime) {
+    gameLoop() {
         if (!this.isPlaying) return;
 
-        if (!this.isPaused && currentTime >= this.nextNoteSpawnTime && this.currentNoteIndex < this.songData.length) {
-            this.spawnNextNotes();
-            this.nextNoteSpawnTime = currentTime + this.noteSpawnInterval;
-        }
+        if (!this.isPaused && !this.isShifting) { // Don't move or spawn if paused or shifting
 
-        if (!this.isPaused) { // Only move notes if not paused
+            // Distance-based spawning logic
+            if (this.activeNotes.length > 0 && this.currentNoteIndex < this.songData.length) {
+                const highestNote = this.activeNotes.reduce((prev, current) => {
+                    const prevTop = parseFloat(prev.element.style.top || 0);
+                    const currentTop = parseFloat(current.element.style.top || 0);
+                    return (prevTop < currentTop) ? prev : current; // Find note with smallest top value (highest)
+                });
+                const highestNoteTop = parseFloat(highestNote.element.style.top || 0);
+
+                if (highestNoteTop > this.spawnDistanceThreshold) {
+                    this.spawnNextNotes();
+                }
+            } else if (this.activeNotes.length === 0 && this.currentNoteIndex < this.songData.length) {
+                // If no active notes and more notes to spawn, spawn immediately to start
+                this.spawnNextNotes();
+            }
+
+
             this.activeNotes.forEach(noteObj => {
                 const noteElement = noteObj.element;
                 const currentTop = parseFloat(noteElement.style.top || 0);
@@ -90,7 +105,8 @@ export class Game {
 
         this.activeNotes = this.activeNotes.filter(noteObj => noteObj.element.parentNode);
 
-        if (this.activeNotes.length === 0 && this.currentNoteIndex >= this.songData.length) {
+
+        if (this.activeNotes.length === 0 && this.currentNoteIndex >= this.songData.length && this.isPlaying) {
             this.feedbackDiv.textContent = 'Finished!';
             this.isPlaying = false;
         }
@@ -107,11 +123,11 @@ export class Game {
             noteElement.classList.add('at-deck');
             if (!this.isPaused) {
                 console.log('Leading note reached deck. Freezing.');
-                this.isPaused = true; // Freeze when the leading note hits the deck
+                this.isPaused = true;
             }
         }
 
-        if (noteRect.bottom > window.innerHeight) {
+        if (noteRect.bottom > this.gameArea.offsetHeight) {
             this.destroyNote(noteObj, false);
         }
     }
@@ -120,8 +136,18 @@ export class Game {
         if (!noteObj.element.parentNode) return;
 
         if (isCorrect) {
+            const noteElement = noteObj.element;
+            const noteRect = noteElement.getBoundingClientRect();
+            const deckTop = this.deckPosition;
+            const distanceToDeck = deckTop - noteRect.bottom;
+
             this.feedbackDiv.textContent = 'Correct!';
             this.animateNoteDisappearance(noteObj.element);
+
+            if (distanceToDeck > 0 && distanceToDeck <= this.hitThreshold) {
+                this.shiftActiveNotes(distanceToDeck);
+            }
+
         } else {
             this.feedbackDiv.textContent = `Missed note: ${noteObj.id}`;
             noteObj.element.remove();
@@ -137,34 +163,85 @@ export class Game {
         });
     }
 
-    matchNote(detectedFrequency) {
+    shiftActiveNotes(shiftDistance) {
+        if (this.isShifting) return; // Prevent overlapping shifts
+        this.isShifting = true;
 
+        let shiftStartTime = null;
+        const duration = 150; // Animation duration in ms (adjust as needed)
+        const startTops = this.activeNotes.map(note => ({
+            note: note,
+            startTop: parseFloat(note.element.style.top || 0)
+        }));
+        const originalFallSpeed = this.fallSpeed;
+        this.fallSpeed = originalFallSpeed * 2; // Speed up falling during shift
+
+        const animateShift = (currentTime) => {
+            if (!shiftStartTime) shiftStartTime = currentTime;
+            const elapsed = currentTime - shiftStartTime;
+            const progress = Math.min(elapsed / duration, 1); // Progress from 0 to 1
+
+            startTops.forEach(({ note, startTop }) => {
+                note.element.style.top = `${startTop + shiftDistance * progress}px`;
+            });
+
+            if (progress < 1) {
+                requestAnimationFrame(animateShift);
+            } else {
+                this.isShifting = false; // Reset shift flag
+                this.fallSpeed = originalFallSpeed; // Restore original fall speed
+            }
+        };
+
+        requestAnimationFrame(animateShift);
+    }
+
+
+    matchNote(detectedFrequency) {
         const deckTop = this.deckPosition;
+
+        let leadingNoteObj = null;
+        let minDistanceToDeck = Infinity;
 
         this.activeNotes.forEach(noteObj => {
             const noteElement = noteObj.element;
             const noteRect = noteElement.getBoundingClientRect();
+            const distanceToDeck = noteRect.bottom - deckTop;
 
-            if (noteRect.bottom > deckTop - this.hitThreshold) {
+            document.getElementById('debugTargetNoteId').textContent = '';
+            document.getElementById('debugExpectedFrequency').textContent = 'N/A';
+
+            if (distanceToDeck > -this.hitThreshold && distanceToDeck < this.gameArea.offsetHeight) {
                 const noteId = parseInt(noteElement.dataset.noteId);
                 const expectedFrequency = this.instrument.getExpectedFrequency(noteId);
                 const delta = this.instrument.calculateFrequencyDelta(noteId);
 
                 document.getElementById('debugTargetNoteId').textContent = noteId;
                 document.getElementById('debugExpectedFrequency').textContent = expectedFrequency ? expectedFrequency.toFixed(2) : 'N/A';
+                document.getElementById('debugDetectedFrequency').textContent = detectedFrequency ? detectedFrequency.toFixed(2) : 'N/A';
 
-                console.log(`Match Attempt - Note ID: ${noteId}, Detected: ${detectedFrequency.toFixed(2)}, Expected: ${expectedFrequency ? expectedFrequency.toFixed(2) : 'N/A'}, Delta: ${delta}`);
+                console.log(`Match Attempt ID: ${noteId}, Det: ${detectedFrequency.toFixed(2)}, Exp: ${expectedFrequency ? expectedFrequency.toFixed(2) : 'N/A'}, Delta: ${delta}, DistToDeck: ${distanceToDeck.toFixed(2)}`);
 
                 if (expectedFrequency && Math.abs(detectedFrequency - expectedFrequency) < delta) {
-                    console.log('Match Found! Destroying note.');
+                    console.log('Match Found for note ID:', noteId);
                     this.destroyNote(noteObj, true);
                     this.activeNotes = this.activeNotes.filter(n => n !== noteObj);
                     this.isPaused = false;
+                    return;
                 } else {
                     console.log('No Match.');
                 }
             }
-        });
-    }
 
+            if (noteRect.bottom > deckTop && distanceToDeck < minDistanceToDeck) {
+                minDistanceToDeck = distanceToDeck;
+                leadingNoteObj = noteObj;
+            }
+        });
+
+        if (leadingNoteObj && minDistanceToDeck >= 0 && !this.isPaused && !this.isShifting) {
+            console.log("Freezing due to leading note at deck", leadingNoteObj.id);
+            this.isPaused = true;
+        }
+    }
 }
