@@ -1,5 +1,6 @@
 import { Game } from './game.js';
 import { InstrumentFactory } from './instrument-factory.js';
+import { maybeStartSelfCheck, startSelfCheck } from './self-check.js';
 
 document.addEventListener('DOMContentLoaded', async () => {
     const instrumentArea = document.getElementById('instrumentArea');
@@ -16,6 +17,62 @@ document.addEventListener('DOMContentLoaded', async () => {
     const instrumentSelect = document.getElementById('instrumentSelect');
     const overlay = document.getElementById('overlay');
     const overlayContent = document.getElementById('overlay-content');
+    const controlsDiv = document.getElementById('controls');
+    const debugInfo = document.getElementById('debugInfo');
+    const debugToggle = document.getElementById('debugToggle');
+
+    // Keep #instrumentArea lifted above the fixed #controls overlay.
+    function syncControlsHeight() {
+        document.documentElement.style.setProperty('--controls-h', `${controlsDiv.offsetHeight}px`);
+    }
+    if (typeof ResizeObserver !== 'undefined') {
+        new ResizeObserver(syncControlsHeight).observe(controlsDiv);
+    }
+    syncControlsHeight();
+    if (debugToggle && debugInfo) {
+        debugToggle.addEventListener('click', () => {
+            debugInfo.classList.toggle('visible');
+            syncControlsHeight();
+        });
+    }
+
+    // --- TV / D-pad (remote) navigation ---
+    // Left/Right moves focus between controls. Up/Down highlights a value in the
+    // focused <select>; Enter/Space confirms it. Confirming a song starts the
+    // game, so merely browsing the list no longer fires every song at once.
+    const dpadFocusables = [instrumentSelect, songSelect, debugToggle].filter(Boolean);
+    function moveFocus(step) {
+        const i = dpadFocusables.indexOf(document.activeElement);
+        const next = i < 0 ? 0 : (i + step + dpadFocusables.length) % dpadFocusables.length;
+        dpadFocusables[next].focus();
+    }
+    document.addEventListener('keydown', (event) => {
+        const el = document.activeElement;
+        const key = event.key;
+        if (key === 'ArrowLeft' || key === 'ArrowRight') {
+            event.preventDefault();
+            moveFocus(key === 'ArrowRight' ? 1 : -1);
+            return;
+        }
+        if (el && el.tagName === 'SELECT' && (key === 'ArrowDown' || key === 'ArrowUp')) {
+            event.preventDefault();
+            const count = el.options.length;
+            if (count) {
+                const dir = key === 'ArrowDown' ? 1 : -1;
+                el.selectedIndex = (el.selectedIndex + dir + count) % count;
+            }
+            return;
+        }
+        if (el && el.tagName === 'SELECT' && (key === 'Enter' || key === ' ')) {
+            event.preventDefault();
+            el.dispatchEvent(new Event('change', { bubbles: true }));
+            return;
+        }
+        if (el && el.tagName === 'BUTTON' && (key === 'Enter' || key === ' ')) {
+            event.preventDefault();
+            el.click();
+        }
+    });
 
     let currentGame = null;
     let currentInstrument = null;
@@ -24,9 +81,24 @@ document.addEventListener('DOMContentLoaded', async () => {
     let analyser;
     let backgroundVolumeThreshold = 0;
 
+    // "Song" entry that actually runs the automated self-test.
+    const SELF_TEST_VALUE = '__selftest__';
+    const selfCheckEnv = {
+        getAudioContext: () => audioContext,
+        getAnalyser: () => analyser,
+        getInstrument: () => currentInstrument,
+        getGame: () => currentGame,
+        getGameArea: () => gameArea,
+    };
+
     async function setupAudio() {
         try {
-            const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+            // Raw (unprocessed) audio: echo cancellation / noise suppression /
+            // auto-gain would fight both the mic pitch detector and the
+            // self-test's speaker -> microphone loopback.
+            const stream = await navigator.mediaDevices.getUserMedia({
+                audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: false },
+            });
             audioContext = new (window.AudioContext || window.webkitAudioContext)();
             const source = audioContext.createMediaStreamSource(stream);
             analyser = audioContext.createAnalyser();
@@ -123,6 +195,11 @@ document.addEventListener('DOMContentLoaded', async () => {
                 option.textContent = song.file.replace('.json', '').replace(/_/g, ' ');
                 songSelect.appendChild(option);
             });
+
+            const selfTest = document.createElement('option');
+            selfTest.value = SELF_TEST_VALUE;
+            selfTest.textContent = 'Self-test (auto-play)';
+            songSelect.appendChild(selfTest);
         } catch (error) {
             console.error('Could not load song list:', error);
         }
@@ -180,6 +257,10 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     songSelect.addEventListener('change', async (event) => {
         const selectedSongFile = event.target.value;
+        if (selectedSongFile === SELF_TEST_VALUE) {
+            startSelfCheck(selfCheckEnv, { virtual: false });
+            return;
+        }
         if (selectedSongFile && currentInstrument) {
             const songData = await loadSongData(selectedSongFile);
             if (songData) {
@@ -195,4 +276,8 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     await setupAudio();
     await initializeInstrument(instrumentSelect.value); // Initialize default instrument
+
+    instrumentSelect.focus(); // give the TV remote something to start on
+
+    maybeStartSelfCheck(selfCheckEnv);
 });
