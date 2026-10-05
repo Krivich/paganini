@@ -42,6 +42,15 @@ Paganini Ukulele: a static browser game that teaches ukulele/piano/sax by ear vi
 - **Gotcha:** without `android.permission.MODIFY_AUDIO_SETTINGS` Chromium cannot open the mic (`getUserMedia` -> `NotReadableError: Could not start audio source`, native log `Unable to select communication device!` at `media/audio/android/audio_manager_android.cc:885`). TV Bro declares that permission; the wrapper must too.
 - Diagnostics: JS errors + `window.isSecureContext` are logged to logcat tag `PAGANINI` via the `AndroidBridge.log` JS interface injected by the wrapper. `http://localhost` is a secure context in this WebView, so local testing works.
 
+## Releases
+- Web: pushing `master` deploys https://krivich.github.io/paganini/ via GitHub Pages (no build step). Push the web app **before** the APK, since the APK loads the Pages URL.
+- Android APK: the kiosk project lives outside the repo (see above). Build the debug-signed APK, bump `--version-code/--version-name` in `build.ps1`, then publish a GitHub Release on `Krivich/paganini` with the APK attached:
+  ```
+  gh release create vX.Y.Z build\paganini.apk --repo Krivich/paganini --title "Paganini X.Y.Z" --notes-file RELEASE_NOTES.md
+  ```
+  Stable download link: https://github.com/Krivich/paganini/releases/latest/download/paganini.apk
+  (`gh` needs auth: a token is available from the stored git credential, or `gh auth login`.)
+
 ## Conventions
 - ES modules with `export class`; relative imports include the `.js` extension.
 - UI strings and console logs are English; code comments are mixed English/Russian.
