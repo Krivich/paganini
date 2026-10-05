@@ -107,8 +107,10 @@ export class Game {
 
 
         if (this.activeNotes.length === 0 && this.currentNoteIndex >= this.songData.length && this.isPlaying) {
-            this.feedbackDiv.textContent = 'Finished!';
+            this.feedbackDiv.textContent = 'Finished! Choose another song to play again.';
             this.isPlaying = false;
+            const songSelect = document.getElementById('songSelect');
+            if (songSelect) songSelect.focus();
         }
 
         requestAnimationFrame(this.gameLoop.bind(this));
@@ -243,5 +245,44 @@ export class Game {
             console.log("Freezing due to leading note at deck", leadingNoteObj.id);
             this.isPaused = true;
         }
+    }
+
+    // Expected frequency of the note currently in the hit window, for the
+    // spectrum strip's target marker. Returns null when no note is close enough.
+    getTargetFrequency() {
+        const deckTop = this.deckPosition;
+        let target = null;
+        for (const noteObj of this.activeNotes) {
+            const rect = noteObj.element.getBoundingClientRect();
+            const distanceToDeck = rect.bottom - deckTop;
+            if (distanceToDeck > -this.hitThreshold && distanceToDeck < this.gameArea.offsetHeight) {
+                const noteId = parseInt(noteObj.element.dataset.noteId);
+                const frequency = this.instrument.getExpectedFrequency(noteId);
+                if (frequency) {
+                    target = frequency;
+                    break;
+                }
+            }
+        }
+        return target;
+    }
+
+    // Note id currently closest to the deck (the one about to be played), for
+    // the on-neck highlight. Returns null when there are no notes.
+    getTargetNoteId() {
+        const deckTop = this.deckPosition;
+        let best = null;
+        let bestDist = Infinity;
+        for (const noteObj of this.activeNotes) {
+            const rect = noteObj.element.getBoundingClientRect();
+            const dist = rect.bottom - deckTop;
+            if (dist < this.gameArea.offsetHeight && dist > -this.gameArea.offsetHeight) {
+                if (Math.abs(dist) < bestDist) {
+                    bestDist = Math.abs(dist);
+                    best = parseInt(noteObj.element.dataset.noteId);
+                }
+            }
+        }
+        return best;
     }
 }

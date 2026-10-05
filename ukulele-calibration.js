@@ -12,10 +12,12 @@ export class UkuleleCalibration extends Calibratable {
         this.calibrationError = false;
         this.stabilityWindow = [];
         this.stabilityThreshold = 5;
-        this.requiredStableDuration = 500;
-        this.calibrationConsistencyTolerance = 3;
+        this.stabilityRelativeTolerance = 0.01;
+        this.minStableSamples = 6;
+        this.requiredStableDuration = 400;
+        this.lastStableTime = 0;
+        this.calibrationConsistencyTolerance = 0.01;
         this.minFrequencyDifference = 100;
-        this.stabilityTimeout = null;
         this.calibrationCallback = null;
     }
 
@@ -26,6 +28,8 @@ export class UkuleleCalibration extends Calibratable {
         this.highFrequencies = [];
         this.calibratedFrequencies = {};
         this.calibrationError = false;
+        this.stabilityWindow = [];
+        this.lastStableTime = 0;
         localStorage.removeItem('avgLowFrequency');
         localStorage.removeItem('avgHighFrequency');
         this.updateCalibrationUI();
@@ -52,29 +56,34 @@ export class UkuleleCalibration extends Calibratable {
     }
 
     checkFrequencyStability(frequency, onStable) {
-        this.stabilityWindow.push({frequency, time: Date.now()});
-        const windowStartTime = Date.now() - this.requiredStableDuration;
+        // A frame with no reliable pitch is ignored rather than treated as
+        // instability, so a single dropout (fan, breath, pick noise) no longer
+        // resets the whole window.
+        if (!frequency || frequency <= 0) {
+            return;
+        }
+        const now = Date.now();
+        this.stabilityWindow.push({ frequency, time: now });
+
+        const windowStartTime = now - this.requiredStableDuration;
         while (this.stabilityWindow.length > 0 && this.stabilityWindow[0].time < windowStartTime) {
             this.stabilityWindow.shift();
         }
+        if (this.stabilityWindow.length < this.minStableSamples) {
+            return;
+        }
 
-        if (this.stabilityWindow.length > 0) {
-            const frequenciesInWindow = this.stabilityWindow.map(item => item.frequency);
-            const minFreq = Math.min(...frequenciesInWindow);
-            const maxFreq = Math.max(...frequenciesInWindow);
+        // Median + spread is robust to a few outliers, unlike min/max.
+        const frequencies = this.stabilityWindow.map(item => item.frequency).sort((a, b) => a - b);
+        const median = frequencies[frequencies.length >> 1];
+        const spread = frequencies[frequencies.length - 1] - frequencies[0];
+        const tolerance = Math.max(this.stabilityThreshold, median * this.stabilityRelativeTolerance);
 
-            if (maxFreq - minFreq <= this.stabilityThreshold) {
-                if (!this.stabilityTimeout) {
-                    this.stabilityTimeout = setTimeout(() => {
-                        onStable(frequency);
-                        this.stabilityTimeout = null;
-                    }, this.requiredStableDuration);
-                    console.log("Frequency considered stable:", frequency.toFixed(2), "after", this.requiredStableDuration, "ms");
-                }
-            } else {
-                clearTimeout(this.stabilityTimeout);
-                this.stabilityTimeout = null;
-                console.log("Frequency unstable:", frequency.toFixed(2), "Variation:", (maxFreq - minFreq).toFixed(2));
+        if (spread <= tolerance) {
+            if (now - this.lastStableTime >= this.requiredStableDuration) {
+                this.lastStableTime = now;
+                console.log("Frequency considered stable:", median.toFixed(2), "Hz (spread", spread.toFixed(2), ")");
+                onStable(median);
             }
         }
     }
@@ -86,11 +95,15 @@ export class UkuleleCalibration extends Calibratable {
         if (this.lowFrequencies.length >= 3) {
             const diff1 = Math.abs(this.lowFrequencies[0] - this.lowFrequencies[1]);
             const diff2 = Math.abs(this.lowFrequencies[1] - this.lowFrequencies[2]);
-            console.log("Consistency check - Low:", diff1.toFixed(2), diff2.toFixed(2));
-            if (diff1 <= this.calibrationConsistencyTolerance && diff2 <= this.calibrationConsistencyTolerance) {
+            const mean = (this.lowFrequencies[0] + this.lowFrequencies[1] + this.lowFrequencies[2]) / 3;
+            const tolerance = Math.max(3, mean * this.calibrationConsistencyTolerance);
+            console.log("Consistency check - Low:", diff1.toFixed(2), diff2.toFixed(2), "tol", tolerance.toFixed(2));
+            if (diff1 <= tolerance && diff2 <= tolerance) {
                 this.calibrationState = 'highFret1';
-                localStorage.setItem('avgLowFrequency', this.lowFrequencies.reduce((a, b) => a + b, 0) / 3);
+                localStorage.setItem('avgLowFrequency', mean);
                 this.lowFrequencies = [];
+                this.stabilityWindow = [];
+                this.lastStableTime = 0;
                 this.updateCalibrationUI();
                 console.log("Calibration state changed to:", this.calibrationState);
             } else {
@@ -108,10 +121,12 @@ export class UkuleleCalibration extends Calibratable {
         if (this.highFrequencies.length >= 3) {
             const diff1 = Math.abs(this.highFrequencies[0] - this.highFrequencies[1]);
             const diff2 = Math.abs(this.highFrequencies[1] - this.highFrequencies[2]);
-            console.log("Consistency check - High:", diff1.toFixed(2), diff2.toFixed(2));
-            if (diff1 <= this.calibrationConsistencyTolerance && diff2 <= this.calibrationConsistencyTolerance) {
+            const mean = (this.highFrequencies[0] + this.highFrequencies[1] + this.highFrequencies[2]) / 3;
+            const tolerance = Math.max(3, mean * this.calibrationConsistencyTolerance);
+            console.log("Consistency check - High:", diff1.toFixed(2), diff2.toFixed(2), "tol", tolerance.toFixed(2));
+            if (diff1 <= tolerance && diff2 <= tolerance) {
                 const avgLowFrequency = parseFloat(localStorage.getItem('avgLowFrequency'));
-                const avgHighFrequency = this.highFrequencies.reduce((a, b) => a + b, 0) / 3;
+                const avgHighFrequency = mean;
                 if (avgHighFrequency - avgLowFrequency < this.minFrequencyDifference) {
                     this.calibrationError = true;
                     this.updateCalibrationUI(`Frequency difference too small. Ensure clear low and high notes.`);
@@ -185,11 +200,11 @@ export class UkuleleCalibration extends Calibratable {
             if (message) {
                 hintElement.textContent = message;
             } else if (this.calibrationState === 'lowFret1') {
-                hintElement.textContent = `Calibrating low note: ${this.lowFrequencies.length}/3 samples collected.`;
+                hintElement.textContent = `Calibration 1/2 — hold a note on fret 1, clear and steady: ${this.lowFrequencies.length}/3`;
             } else if (this.calibrationState === 'highFret1') {
-                hintElement.textContent = `Calibrating high note (12th fret): ${this.highFrequencies.length}/3 samples collected.`;
+                hintElement.textContent = `Calibration 2/2 — now hold a note on fret 12: ${this.highFrequencies.length}/3`;
             } else if (this.calibrationState === 'completed') {
-                hintElement.textContent = 'Calibration Complete!';
+                hintElement.textContent = 'Calibration complete — pick a song to play';
             }
         }
 
@@ -207,6 +222,27 @@ export class UkuleleCalibration extends Calibratable {
 
         if (stateElement) {
             stateElement.textContent = this.calibrationState;
+        }
+
+        // Hide the calibration panel once it is done (after a brief confirmation),
+        // so it does not linger as "Calibration Complete!" with a full progress bar.
+        const panel = document.getElementById('calibration');
+        if (panel) {
+            if (this.isCalibrationComplete()) {
+                if (!this.hidePanelTimer) {
+                    this.hidePanelTimer = setTimeout(() => {
+                        const current = document.getElementById('calibration');
+                        if (current && this.isCalibrationComplete()) current.style.display = 'none';
+                        this.hidePanelTimer = null;
+                    }, 2500);
+                }
+            } else {
+                if (this.hidePanelTimer) {
+                    clearTimeout(this.hidePanelTimer);
+                    this.hidePanelTimer = null;
+                }
+                panel.style.display = '';
+            }
         }
     }
 

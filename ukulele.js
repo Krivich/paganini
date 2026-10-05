@@ -5,6 +5,14 @@ export class Ukulele extends Instrument {
     constructor() {
         super("ukulele");
         this.calibration = new UkuleleCalibration();
+        // Which of the 4 drawn strings the melody is played on (0 = top).
+        // Song data is fret-only, so this is a visual cue the player picks by
+        // tapping the neck; remembered across reloads.
+        this.melodyString = 0;
+        try {
+            const saved = parseInt(localStorage.getItem('ukulele.melodyString'), 10);
+            if (saved >= 0 && saved < 4) this.melodyString = saved;
+        } catch (e) { /* localStorage unavailable */ }
     }
 
     draw(containerElement) {
@@ -15,8 +23,43 @@ export class Ukulele extends Instrument {
                 <div id="soundHole"></div>
             </div>
         `;
-        this.renderStrings(containerElement.querySelector('#ukuleleNeck'));
-        this.renderFrets(containerElement.querySelector('#ukuleleNeck'));
+        const neck = containerElement.querySelector('#ukuleleNeck');
+        this.renderStrings(neck);
+        this.renderFrets(neck);
+        // Feedback markers: green = where to press, red = where the note was
+        // actually heard.
+        const heard = document.createElement('div');
+        heard.id = 'ukuleleHeard';
+        const target = document.createElement('div');
+        target.id = 'ukuleleTarget';
+        neck.appendChild(heard);
+        neck.appendChild(target);
+        neck.title = 'Tap a string to set the melody string';
+        neck.addEventListener('click', (e) => this.onNeckClick(e));
+    }
+
+    // Tap the neck near a string to make that string the melody string.
+    onNeckClick(e) {
+        const rect = e.currentTarget.getBoundingClientRect();
+        if (!rect.height) return;
+        const y = (e.clientY - rect.top) / rect.height;
+        // Drawn strings sit at 15%, 40%, 65%, 90% of the neck height.
+        const idx = Math.max(0, Math.min(3, Math.round((y - 0.15) / 0.25)));
+        this.setMelodyString(idx);
+    }
+
+    setMelodyString(index) {
+        this.melodyString = index;
+        try { localStorage.setItem('ukulele.melodyString', String(index)); } catch (e) { /* ignore */ }
+        const strings = document.querySelectorAll('#ukuleleNeck .ukulele-string');
+        strings.forEach((s, i) => {
+            s.classList.toggle('melody-string', i === index);
+            s.classList.toggle('active', i === index && this.targetActive === true);
+        });
+        const target = document.getElementById('ukuleleTarget');
+        if (target && target.style.display !== 'none') {
+            target.style.top = `${15 + 25 * index}%`;
+        }
     }
 
     renderStrings(neckElement) {
@@ -25,6 +68,7 @@ export class Ukulele extends Instrument {
             const stringElement = document.createElement('div');
             stringElement.classList.add('ukulele-string');
             stringElement.style.top = `${15 + (i * 25)}%`;
+            if (i === this.melodyString) stringElement.classList.add('melody-string');
             neckElement.appendChild(stringElement);
         }
     }
@@ -42,26 +86,82 @@ export class Ukulele extends Instrument {
         }
     }
 
-    getNotePosition(fret, gameArea) {
-        const neck = gameArea.parentNode.querySelector('#ukuleleNeck');
-        if (!neck) return { top: 0, left: 0 };
-        const neckRect = neck.getBoundingClientRect();
-        const fretElements = neck.querySelectorAll('.fret');
-
-        let leftPosition;
-        if (fret === 0) {
-            leftPosition = neckRect.left; // Approximate open string position
-        } else if (fret > 0 && fret <= fretElements.length) {
-            const fretRect = fretElements[fret - 1].getBoundingClientRect();
-            leftPosition = fretRect.left + fretRect.width / 2 - gameArea.offsetLeft;
-        } else {
-            let lastFret = fretElements[fretElements.length - 1].getBoundingClientRect();
-            let preLastFret = fretElements[fretElements.length - 2].getBoundingClientRect();
-            leftPosition = lastFret.left + lastFret.width / 2 - gameArea.offsetLeft +
-                (lastFret.left - preLastFret.left) * (fret - fretElements.length);
+    // Fraction (0..1) across the neck where a finger presses for `fret`.
+    // Fret N is the gap between wire N-1 and wire N (fret 1 = nut..wire 1);
+    // fret 0 (open string) sits on the nut.
+    pressFrac(fret) {
+        const wireFrac = (f) => (1 - Math.pow(2, -f / 12)) * 1.9;
+        if (fret <= 0) return 0.015;
+        if (fret <= 12) {
+            const left = fret === 1 ? 0 : wireFrac(fret - 1);
+            return (left + wireFrac(fret)) / 2;
         }
+        const step = wireFrac(12) - wireFrac(11);
+        return wireFrac(12) + step * (fret - 12);
+    }
 
-        return { left: leftPosition }; // Only horizontal position
+    // Fractional fret of a frequency (ukulele is chromatic, so one fret = one
+    // semitone). null when we don't have a calibrated open-string frequency.
+    freqToFret(frequency) {
+        const f0 = this.calibration && this.calibration.calibratedFrequencies
+            ? this.calibration.calibratedFrequencies[0] : null;
+        if (!f0 || frequency <= 0) return null;
+        return 12 * Math.log2(frequency / f0);
+    }
+
+    // Green marker: where the current target note must be pressed.
+    showTarget(fret) {
+        const el = document.getElementById('ukuleleTarget');
+        this.targetActive = fret != null;
+        const strings = document.querySelectorAll('#ukuleleNeck .ukulele-string');
+        strings.forEach((s, i) => s.classList.toggle('active', fret != null && i === this.melodyString));
+        if (!el) return;
+        if (fret == null) { el.style.display = 'none'; return; }
+        el.style.left = `${this.pressFrac(fret) * 100}%`;
+        el.style.top = `${15 + 25 * this.melodyString}%`;
+        el.style.display = 'block';
+    }
+
+    // Red marker: where the note the mic actually heard lies on the neck.
+    // Held for a moment after the last clear pitch so a decaying pluck stays
+    // visible instead of blinking off between picks.
+    showHeard(frequency) {
+        const el = document.getElementById('ukuleleHeard');
+        if (!el) return;
+        const fret = frequency > 0 ? this.freqToFret(frequency) : null;
+        if (fret != null && fret >= -0.5 && fret <= 24) {
+            this.lastHeardFret = fret;
+            this.lastHeardTime = performance.now();
+        }
+        const fresh = this.lastHeardTime && (performance.now() - this.lastHeardTime < 900);
+        if (!fresh) { el.style.display = 'none'; return; }
+        el.style.left = `${this.pressFrac(this.lastHeardFret) * 100}%`;
+        el.style.display = 'block';
+    }
+
+    getNotePosition(fret, gameArea) {
+        const neck = document.getElementById('ukuleleNeck');
+        if (!neck) return { left: 0 };
+        const neckRect = neck.getBoundingClientRect();
+        const frets = neck.querySelectorAll('.fret');
+        if (!frets.length) return { left: neckRect.left - gameArea.offsetLeft };
+
+        const wireCenter = (i) => {
+            const r = frets[i].getBoundingClientRect();
+            return r.left + r.width / 2;
+        };
+        let centerX;
+        if (fret <= 0) {
+            centerX = neckRect.left; // open string: the nut
+        } else if (fret <= frets.length) {
+            const leftEdge = fret === 1 ? neckRect.left : wireCenter(fret - 2);
+            centerX = (leftEdge + wireCenter(fret - 1)) / 2;
+        } else {
+            const last = wireCenter(frets.length - 1);
+            const prev = wireCenter(frets.length - 2);
+            centerX = last + (last - prev) * (fret - frets.length);
+        }
+        return { left: centerX - gameArea.offsetLeft };
     }
 
 

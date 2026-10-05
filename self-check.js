@@ -15,7 +15,7 @@
 
 const LOW_TONE = 330;   // "low fret" reference (any stable pair an octave apart works)
 const HIGH_TONE = 660;  // "high fret" reference
-const GAIN = 0.35;
+const GAIN = 0.8;
 
 export function maybeStartSelfCheck(env) {
     const params = new URLSearchParams(location.search);
@@ -90,13 +90,16 @@ export function startSelfCheck(env, opts = {}) {
         const analyser = env.getAnalyser();
         const bin = (analyser && analyser.fftSize) ? ac.sampleRate / analyser.fftSize : 5.86;
         const lowTone = Math.max(1, Math.round(LOW_TONE / bin)) * bin;
-        const highTone = lowTone * 2; // an octave apart = "fret 1" -> "fret 12"
+        // Fret 1 -> fret 12 is 11 semitones (not a full octave), matching what a
+        // real player presses, so the calibrated fret->frequency map stays
+        // consistent with the on-neck feedback markers.
+        const highTone = Math.max(1, Math.round((lowTone * Math.pow(2, 11 / 12)) / bin)) * bin;
 
         const osc = ac.createOscillator();
         const gain = ac.createGain();
         osc.type = 'sine';
         osc.frequency.value = lowTone;
-        gain.gain.value = GAIN;
+        gain.gain.value = 0;
         osc.connect(gain);
         gain.connect(ac.destination);                 // speakers
         if (virtual) gain.connect(env.getAnalyser()); // direct injection
@@ -104,7 +107,22 @@ export function startSelfCheck(env, opts = {}) {
         const setFreq = (f) => {
             if (f && isFinite(f)) osc.frequency.setTargetAtTime(f, ac.currentTime, 0.01);
         };
-        log(`oscillator on (${virtual ? 'speakers + virtual' : 'speakers'}), bin=${bin.toFixed(2)} Hz`);
+
+        // Realistic plucks: short bursts separated by silence, like strumming a
+        // string, instead of one continuous tone.
+        const HOLD = 0.3, GAP = 0.2;
+        const pluck = () => {
+            const t = ac.currentTime;
+            gain.gain.cancelScheduledValues(t);
+            gain.gain.setValueAtTime(0.0001, t);
+            gain.gain.exponentialRampToValueAtTime(GAIN, t + 0.015);
+            gain.gain.setValueAtTime(GAIN, t + HOLD - 0.08);
+            gain.gain.exponentialRampToValueAtTime(0.0001, t + HOLD);
+        };
+        let plucking = true;
+        (async () => { while (plucking) { pluck(); await sleep((HOLD + GAP) * 1000); } })();
+
+        log(`oscillator on (${virtual ? 'speakers + virtual' : 'speakers'}), bin=${bin.toFixed(2)} Hz, pluck ${HOLD}s+${GAP}s`);
 
         // --- 1. calibration ---
         const cal = instrument.calibration;

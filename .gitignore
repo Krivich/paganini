@@ -1,0 +1,15 @@
+# Local AI/LLM scratch (see AGENTS.md)
+combined_output.txt
+out.txt
+project.txt
+qwen_context.txt
+copy.bat
+
+# IDE / agent config
+.idea/
+*.iml
+.opencode/
+
+# Build output
+output/
+build/

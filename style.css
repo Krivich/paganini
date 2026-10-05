@@ -1,5 +1,27 @@
 /*style.css*/
 
+:root {
+    --spectrum-h: clamp(40px, 8vh, 64px);
+}
+
+#detLog {
+    position: fixed;
+    top: 4px;
+    right: 4px;
+    z-index: 9999;
+    margin: 0;
+    max-width: 60vw;
+    max-height: 44vh;
+    overflow: hidden;
+    padding: 6px 8px;
+    background: rgba(0, 0, 0, 0.72);
+    color: #0f0;
+    font: 12px/1.25 monospace;
+    white-space: pre;
+    pointer-events: none;
+}
+
+
 body {
     font-family: sans-serif;
     margin: 0;
@@ -68,11 +90,23 @@ html {
     left: 0;
     right: 0;
     bottom: 0;
-    padding: 8px 16px;
+    padding: 8px 16px calc(8px + var(--spectrum-h));
     text-align: center;
     background-color: rgba(70, 70, 70, 0.85);
     box-sizing: border-box;
     z-index: 50;
+}
+
+#spectrum {
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    width: 100%;
+    height: var(--spectrum-h);
+    display: block;
+    pointer-events: none;
+    background-color: rgba(0, 0, 0, 0.45);
 }
 
 
@@ -137,6 +171,44 @@ html {
 .ukulele-string:nth-child(2) { top: 40%; }
 .ukulele-string:nth-child(3) { top: 65%; }
 .ukulele-string:nth-child(4) { top: 90%; }
+
+.ukulele-string.melody-string {
+    height: 2px;
+    background-color: #ddd;
+}
+
+.ukulele-string.active {
+    height: 4px;
+    background-color: #0f0;
+    box-shadow: 0 0 10px #0f0;
+}
+
+/* Green dot: where the current note must be pressed (between the frets). */
+#ukuleleTarget {
+    position: absolute;
+    width: 26px;
+    height: 26px;
+    margin: -13px 0 0 -13px;
+    border-radius: 50%;
+    background: rgba(0, 255, 0, 0.22);
+    border: 2px solid #0f0;
+    box-shadow: 0 0 14px #0f0;
+    z-index: 6;
+    display: none;
+}
+
+/* Red band: where the note the mic actually heard lies on the neck. */
+#ukuleleHeard {
+    position: absolute;
+    top: 0;
+    height: 100%;
+    width: 7px;
+    margin-left: -3.5px;
+    background: rgba(255, 70, 70, 0.55);
+    box-shadow: 0 0 10px rgba(255, 70, 70, 0.85);
+    z-index: 5;
+    display: none;
+}
 
 .fret {
     position: absolute;

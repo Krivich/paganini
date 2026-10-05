@@ -3,7 +3,7 @@
 <head>
     <title>Paganini - Instruments</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="style.css?v=7">
 </head>
 <body>
 
@@ -33,17 +33,19 @@
 </div>
 
 <div id="controls">
+    <canvas id="spectrum"></canvas>
     <div id="calibration">
         <div id="calibrationHint">Calibrating...</div>
         <div id="calibrationProgressContainer">
             <div id="calibrationProgressBar"></div>
         </div>
     </div>
-    <p>Play the notes as they reach the target!</p>
+    <p id="playHint">Play the notes as they reach the target!</p>
     <div id="feedback"></div>
     <div id="debugInfo">
         <div>Calibration State: <span id="debugCalibrationState"></span></div>
         <div>Detected Frequency: <span id="debugDetectedFrequency"></span> Hz</div>
+        <div>Level: <span id="debugLevel"></span></div>
         <div>Target Note ID: <span id="debugTargetNoteId"></span></div>
         <div>Expected Frequency: <span id="debugExpectedFrequency"></span> Hz</div>
     </div>
@@ -55,7 +57,7 @@
     </div>
 </div>
 
-<script type="module" src="script.js"></script>
+<script type="module" src="script.js?v=11"></script>
 
 </body>
 </html>

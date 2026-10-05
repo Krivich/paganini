@@ -1,5 +1,5 @@
 // instrument-factory.js
-import { Ukulele } from './ukulele.js';
+import { Ukulele } from './ukulele.js?v=1';
 import { Piano } from './piano.js';
 import { Saxophone } from './saxophone.js'; // Import the Saxophone class
 
